@@ -79,7 +79,7 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.strokeStyle = ring || "rgba(232, 224, 200, 0.55)";
-    ctx.lineWidth = ring ? 2.5 : 1.5;
+    ctx.lineWidth = ring ? 3.5 : 1.5;
     ctx.stroke();
   }
 
@@ -104,6 +104,11 @@ export class Renderer {
         } else if (t === "#") {
           ctx.fillStyle = this.containerPattern;
           ctx.fillRect(px, py, TILE, TILE);
+          // Calm the rust-red banding: a dark translucent wash over the
+          // texture so the amber cones, gold loot and tokens pop against
+          // the containers instead of competing with them.
+          ctx.fillStyle = "rgba(6, 16, 22, 0.30)";
+          ctx.fillRect(px, py, TILE, TILE);
           // Deterministic per-stack variation: the same texture, but each
           // container stack reads as its own weathered box, not a clone.
           const shade = ((x * 7 + y * 13) % 5) * 0.045;
@@ -113,7 +118,7 @@ export class Renderer {
             ctx.fillStyle = "rgba(255, 176, 66, 0.05)";
             ctx.fillRect(px, py, TILE, 4);
           }
-          ctx.fillStyle = "rgba(0,0,0,0.35)";
+          ctx.fillStyle = "rgba(0,0,0,0.42)";
           ctx.fillRect(px, py + TILE - 5, TILE, 5);
           ctx.fillRect(px + TILE - 4, py, 4, TILE);
           ctx.strokeStyle = "rgba(0,0,0,0.5)";
@@ -264,38 +269,49 @@ export class Renderer {
     const ring =
       guard.state === "ALERTED" ? "#ff5a4e" :
       guard.state === "SUSPICIOUS" ? "#ff9628" : "#ffb042";
-    this.drawToken(this.images.guard, guard.x, guard.y, 15, ring);
-    // Facing tick: a short amber line showing where the guard looks.
-    ctx.strokeStyle = "#ffd76a";
-    ctx.lineWidth = 3;
+    this.drawToken(this.images.guard, guard.x, guard.y, 18, ring);
+    // Facing wedge: a filled amber wedge showing where the guard looks,
+    // wide enough to read at thumbnail size.
+    const fa = guard.facing;
+    const tipX = guard.x + Math.cos(fa) * 30;
+    const tipY = guard.y + Math.sin(fa) * 30;
+    const bx = guard.x + Math.cos(fa) * 8;
+    const by = guard.y + Math.sin(fa) * 8;
+    const px1 = bx + Math.cos(fa + Math.PI / 2) * 9;
+    const py1 = by + Math.sin(fa + Math.PI / 2) * 9;
+    const px2 = bx + Math.cos(fa - Math.PI / 2) * 9;
+    const py2 = by + Math.sin(fa - Math.PI / 2) * 9;
+    ctx.fillStyle = "rgba(255, 215, 106, 0.95)";
     ctx.beginPath();
-    ctx.moveTo(guard.x, guard.y);
-    ctx.lineTo(guard.x + Math.cos(guard.facing) * 22, guard.y + Math.sin(guard.facing) * 22);
-    ctx.stroke();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(px1, py1);
+    ctx.lineTo(px2, py2);
+    ctx.closePath();
+    ctx.fill();
     // Name label.
     ctx.fillStyle = "#e8e0c8";
-    ctx.font = "11px sans-serif";
+    ctx.font = "bold 11px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(guard.name, guard.x, guard.y - 22);
+    ctx.fillText(guard.name, guard.x, guard.y - 27);
     // State mark: "?" while suspicious, "!" while alerted.
     if (guard.state === "SUSPICIOUS" || guard.state === "ALERTED") {
       const mark = guard.state === "ALERTED" ? "!" : "?";
       const bob = Math.sin(performance.now() / 180) * 2;
       ctx.fillStyle = guard.state === "ALERTED" ? PALETTE.red : PALETTE.amber;
       ctx.font = "bold 20px sans-serif";
-      ctx.fillText(mark, guard.x, guard.y - 34 + bob);
+      ctx.fillText(mark, guard.x, guard.y - 40 + bob);
     }
     // Suspicion arc over the guard's head.
     if (guard.suspicion > 2) {
       ctx.strokeStyle = "rgba(0,0,0,0.6)";
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(guard.x, guard.y, 20, -Math.PI / 2, Math.PI * 1.5);
+      ctx.arc(guard.x, guard.y, 23, -Math.PI / 2, Math.PI * 1.5);
       ctx.stroke();
       ctx.strokeStyle = guard.suspicion >= 60 ? PALETTE.red : PALETTE.amber;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(guard.x, guard.y, 20, -Math.PI / 2, -Math.PI / 2 + (guard.suspicion / 100) * Math.PI * 2);
+      ctx.arc(guard.x, guard.y, 23, -Math.PI / 2, -Math.PI / 2 + (guard.suspicion / 100) * Math.PI * 2);
       ctx.stroke();
     }
   }
@@ -305,12 +321,12 @@ export class Renderer {
     const player = game.player;
     // A soft light pool under the thief so the hero reads against the dock.
     ctx.save();
-    const pool = ctx.createRadialGradient(player.x, player.y, 4, player.x, player.y, 34);
+    const pool = ctx.createRadialGradient(player.x, player.y, 4, player.x, player.y, 40);
     pool.addColorStop(0, "rgba(140, 210, 225, 0.20)");
     pool.addColorStop(1, "rgba(140, 210, 225, 0)");
     ctx.fillStyle = pool;
     ctx.beginPath();
-    ctx.arc(player.x, player.y, 34, 0, Math.PI * 2);
+    ctx.arc(player.x, player.y, 40, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     // Sprinting is loud: an expanding ripple shows the noise carrying.
@@ -327,7 +343,7 @@ export class Renderer {
     // A soft shadow ring shows whether you are hidden or lit.
     ctx.save();
     ctx.beginPath();
-    ctx.arc(player.x, player.y, 20, 0, Math.PI * 2);
+    ctx.arc(player.x, player.y, 23, 0, Math.PI * 2);
     if (player.hiddenInBush()) {
       ctx.fillStyle = "rgba(47, 214, 122, 0.25)";
     } else if (player.standingInLampLight()) {
@@ -337,17 +353,40 @@ export class Renderer {
     }
     ctx.fill();
     ctx.restore();
-    this.drawToken(this.images.player, player.x, player.y, 14, "#bfefff");
+    this.drawToken(this.images.player, player.x, player.y, 17, "#bfefff");
+    // A second, brighter outer ring so the hero reads instantly at
+    // thumbnail size, plus a small facing wedge in the move direction.
+    ctx.strokeStyle = "rgba(191, 239, 255, 0.9)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 19.5, 0, Math.PI * 2);
+    ctx.stroke();
+    const fa = player.facing;
+    const tipX = player.x + Math.cos(fa) * 27;
+    const tipY = player.y + Math.sin(fa) * 27;
+    const bx = player.x + Math.cos(fa) * 7;
+    const by = player.y + Math.sin(fa) * 7;
+    const px1 = bx + Math.cos(fa + Math.PI / 2) * 7;
+    const py1 = by + Math.sin(fa + Math.PI / 2) * 7;
+    const px2 = bx + Math.cos(fa - Math.PI / 2) * 7;
+    const py2 = by + Math.sin(fa - Math.PI / 2) * 7;
+    ctx.fillStyle = "rgba(191, 239, 255, 0.95)";
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(px1, py1);
+    ctx.lineTo(px2, py2);
+    ctx.closePath();
+    ctx.fill();
     if (player.sneaking) {
       ctx.fillStyle = "#9db3a8";
       ctx.font = "11px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("SNEAK", player.x, player.y - 22);
+      ctx.fillText("SNEAK", player.x, player.y - 27);
     } else if (player.sprinting) {
       ctx.fillStyle = PALETTE.amber;
       ctx.font = "11px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("SPRINT", player.x, player.y - 22);
+      ctx.fillText("SPRINT", player.x, player.y - 27);
     }
   }
 
