@@ -30,6 +30,7 @@ export class Player {
     this.stepLoud = false; // true when the last step made noise
     this.coin = null; // { x, y, tx, ty, t } — a coin in flight, or null
     this.coinLanded = null; // { x, y, ttl } — a landed coin still ringing
+    this.ripple = 0; // sprint noise ripple phase (0 = no ripple showing)
   }
 
   speed() {
@@ -75,9 +76,13 @@ export class Player {
       if (this.stepTimer <= 0) {
         this.stepTimer = this.sneaking ? 0.62 : this.sprinting ? 0.26 : 0.4;
         this.stepLoud = this.sprinting;
+        this.ripple = 0; // a fresh step starts a fresh noise ripple
       } else {
         this.stepLoud = false;
       }
+      // The ripple expands while the step's noise carries.
+      if (this.sprinting) this.ripple = Math.min(this.ripple + dt, 0.7);
+      else this.ripple = 0;
     } else {
       this.stepLoud = false;
     }
