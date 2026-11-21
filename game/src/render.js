@@ -104,6 +104,15 @@ export class Renderer {
         } else if (t === "#") {
           ctx.fillStyle = this.containerPattern;
           ctx.fillRect(px, py, TILE, TILE);
+          // Deterministic per-stack variation: the same texture, but each
+          // container stack reads as its own weathered box, not a clone.
+          const shade = ((x * 7 + y * 13) % 5) * 0.045;
+          ctx.fillStyle = `rgba(4, 12, 18, ${shade})`;
+          ctx.fillRect(px, py, TILE, TILE);
+          if ((x * 3 + y * 5) % 4 === 0) {
+            ctx.fillStyle = "rgba(255, 176, 66, 0.05)";
+            ctx.fillRect(px, py, TILE, 4);
+          }
           ctx.fillStyle = "rgba(0,0,0,0.35)";
           ctx.fillRect(px, py + TILE - 5, TILE, 5);
           ctx.fillRect(px + TILE - 4, py, 4, TILE);
@@ -294,6 +303,27 @@ export class Renderer {
   drawPlayer(game) {
     const ctx = this.ctx;
     const player = game.player;
+    // A soft light pool under the thief so the hero reads against the dock.
+    ctx.save();
+    const pool = ctx.createRadialGradient(player.x, player.y, 4, player.x, player.y, 34);
+    pool.addColorStop(0, "rgba(140, 210, 225, 0.20)");
+    pool.addColorStop(1, "rgba(140, 210, 225, 0)");
+    ctx.fillStyle = pool;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // Sprinting is loud: an expanding ripple shows the noise carrying.
+    if (player.ripple > 0) {
+      const frac = player.ripple / 0.7;
+      ctx.save();
+      ctx.strokeStyle = `rgba(255, 176, 66, ${0.4 * (1 - frac)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 14 + frac * 66, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     // A soft shadow ring shows whether you are hidden or lit.
     ctx.save();
     ctx.beginPath();
@@ -307,7 +337,7 @@ export class Renderer {
     }
     ctx.fill();
     ctx.restore();
-    this.drawToken(this.images.player, player.x, player.y, 14);
+    this.drawToken(this.images.player, player.x, player.y, 14, "#bfefff");
     if (player.sneaking) {
       ctx.fillStyle = "#9db3a8";
       ctx.font = "11px sans-serif";
